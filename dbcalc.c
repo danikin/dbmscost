@@ -60,7 +60,6 @@ struct requirements
 
         int i_read_qps;
         int i_write_qps;
-        int i_write_qps;
         int i_size_of_dataset; // Mb
         int i_number_of_replicas;
         int i_disks_per_RAID;
