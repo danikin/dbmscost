@@ -23,16 +23,25 @@ int max3(int a, int b, int c)
 struct hardware_cost
 {
         // Hardware costs in $
+
+	// The cost of a server except RAM and disks
         int i_cost_server_body;
+
+	// The costs of RAM & disks per unit
         int i_SSD_price;
         int i_spinning_price;
         int i_RAM_unit_price;
 };
 
+// $2000 per body
+// $500 per SSD
+// $100 per spinning
+// $30 per RAM unit
 struct hardware_cost StandardHardwareCost = {2000, 500, 100, 30};
 
 struct hardware_params
 {
+	// Disks & RAM sizes in Mb
         int i_SSD_size;
         int i_spinning_size;
         int i_RAM_unit_size;
@@ -41,6 +50,10 @@ struct hardware_params
         int i_max_RAM_units_per_server; // In units
 };
 
+// 500Gb SSD
+// 1Tb spinning
+// 16Gb RAM
+// 16 RAM units max per server
 struct hardware_params StandardParams = {500 * 1024, 1000 * 1024, 16 * 1024, 16};
 
 struct other_costs
@@ -50,8 +63,16 @@ struct other_costs
         int i_units_per_server;
         int i_cost_of_money; // annual bank interest, %
         int i_amortization_period; // a period in months after the price of a server is zero
+
+	// Todo:
+	// Additional units incurred by disks (the more disks the more units per server)
 };
 
+// 20 units per rack
+// $1000 per rack per month
+// 2 units per server
+// 3% interest per year
+// 36 months amortization period
 struct other_costs StandardOtherCost = {20, 1000, 2, 3, 36};
 
 struct requirements
@@ -89,10 +110,24 @@ struct database_system
         // Note: it differs from i_max_RAM_units_per_server because i_max_RAM_units_per_server is the server physycal limit, but
         // i_max_RAM_amount_per_server is a database system limit
         int i_max_RAM_amount_per_server; // In Mb
+
+	// Monthly support cost per server
+	int i_monthly_support_per_server;
+
+	// Monthly license fee per server
+	int i_monthly_license_fee_per_server;
 };
 
-struct database_system Tarantool = {100000, 100000, 110, 100, 0, 100, 1 * 1024, 256 * 1024};
-struct database_system MySQL = {10000, 1000, 130, 0, 100, 10, 32 * 1024, 1024 * 1024};
+// 100K read QPS, 100K write QPS, 10% data overhead, 100% in RAM and on spinning disk, 1-256Gb RAM
+struct database_system Tarantool = {100000, 100000, 110, 100, 0, 100, 1 * 1024, 256 * 1024, 0, 0};
+struct database_system TarantoolWithSupport = {100000, 100000, 110, 100, 0, 100, 1 * 1024, 256 * 1024, 1000, 0};
+
+// 10K read QPS, 1K write QPS, 30% data overhead, 10% in RAM and 100% on SSD, 32-1024Gb RAM
+struct database_system MySQL = {10000, 1000, 130, 0, 100, 10, 32 * 1024, 1024 * 1024, 0, 0};
+
+// 80K read QPS, 80K write QPS, 25% data overhead, 100% in RAM and on spinning disk, 1-256Gb RAM
+struct database_system Redis = {80000, 80000, 125, 100, 0, 100, 1 * 1024, 256 * 1024, 0, 0};
+struct database_system RedisWithSupport = {80000, 80000, 125, 100, 0, 100, 1 * 1024, 256 * 1024, 3000, 0};
 
 struct calc_result
 {
@@ -180,7 +215,8 @@ void do_calc(const struct hardware_cost *hc,
         res->total_upfront_cost = res->cost_of_server * res->number_of_servers;
 
         // This is a bit more complicated, but still easy - you host your servers - you pay money
-        res->monthly_cost = ceil_div(res->number_of_servers * oc->i_units_per_server, oc->i_units_per_rack) * oc->i_rack_monthly_price;
+        res->monthly_cost = ceil_div(res->number_of_servers * oc->i_units_per_server, oc->i_units_per_rack) * oc->i_rack_monthly_price +
+		res->number_of_servers * (dbs->i_monthly_support_per_server + dbs->i_monthly_license_fee_per_server);
 
         // Grand total per month including upfront cost smashed by months
         res->grand_total_monthly = res->monthly_cost + (res->total_upfront_cost / oc->i_amortization_period) * (100 + oc->i_amortization_period * oc->i_cost_of_money/12) / 100;
@@ -212,43 +248,62 @@ grand_total_monthly = $%d\n",
                 res->grand_total_monthly);
 }
 
-void Tarantool_vs_MySQL(struct requirements *reqs)
+struct comparison
 {
-        printf("Requirements: %d read QPS, %d write QPS, %dGb dataset\n\n", reqs->i_read_qps, reqs->i_write_qps, reqs->i_size_of_dataset / 1024);
+	const char *name;
+	struct database_system *dbs;
+};
 
-        struct calc_result res;
-        do_calc(&StandardHardwareCost, &StandardParams, &StandardOtherCost, reqs, &Tarantool, &res);
+void compare(struct requirements *reqs, struct comparison *c, int n)
+{
+        printf("\
+------------------------------------------------------------\n\
+Requirements: %d read QPS, %d write QPS, %dGb dataset\n\
+------------------------------------------------------------\n\n\
+", reqs->i_read_qps, reqs->i_write_qps, reqs->i_size_of_dataset / 1024);
 
-        printf("Tarantool:\n\n");
-        print_result(&res);
-        printf("\n");
+	struct calc_result res;
 
-        do_calc(&StandardHardwareCost, &StandardParams, &StandardOtherCost, reqs, &MySQL, &res);
+	// Calculate all the database systems in the comparison
+	for (int i = 0; i < n; ++i)
+	{
+		do_calc(&StandardHardwareCost, &StandardParams, &StandardOtherCost, reqs, c[i].dbs, &res);
 
-        printf("MySQL:\n\n");
-        print_result(&res);
-
-        printf("\n");
+		printf("%s:\n\n", c[i].name);
+		print_result(&res);
+		printf("\n");
+	}
 }
 
 int main()
 {
-        printf("Tarantool: ");
-        print_db_params(&Tarantool);
+	// Fell the structure with rivals
+	struct comparison comparisons[] = {
+		{"Tarantool", &Tarantool},
+		{"Tarantool with support", &TarantoolWithSupport},
+		{"Redis", &Redis},
+		{"Redis with support", &RedisWithSupport},
+		{"MySQL", &MySQL}
+	};
 
-        printf("MySQL:");
-        print_db_params(&MySQL);
+	int n_comp = sizeof(comparisons)/sizeof(struct comparison);
 
-        printf("\n");
+	// Print the name of all the database systems
+	for (int i = 0; i < n_comp; ++i)
+	{
+		printf("%s: ", comparisons[i].name);
+		print_db_params(&Tarantool);
+	}
+	printf("\n");
 
-        Tarantool_vs_MySQL(&ReadWriteHeavyBigDataset);
-        Tarantool_vs_MySQL(&ReadHeavyBigDataset);
-        Tarantool_vs_MySQL(&JustBigDataset);
-        Tarantool_vs_MySQL(&ReadWriteHeavySmallDataset);
-        Tarantool_vs_MySQL(&ReadHeavySmallDataset);
-        Tarantool_vs_MySQL(&SuperBigSuperHeavy);
+	// Compare the database systems with all the workloads
+        compare(&ReadWriteHeavyBigDataset, comparisons, n_comp);
+        compare(&ReadHeavyBigDataset, comparisons, n_comp);
+        compare(&JustBigDataset, comparisons, n_comp);
+        compare(&ReadWriteHeavySmallDataset, comparisons, n_comp);
+        compare(&ReadHeavySmallDataset, comparisons, n_comp);
+        compare(&SuperBigSuperHeavy, comparisons, n_comp);
 
         return 0;
 }
-
 
