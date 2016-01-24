@@ -1,0 +1,110 @@
+<html>
+
+<head><title>Database Cost Calculator</title></head>
+
+<body>
+
+<form>
+<table>
+
+<tr>
+<td>
+
+<h1>Hardware cost</h1>
+Cost of the server body $ <input type="text" value="2000"><br>
+Spinning disk cost $ <input type="text" value="100"><br>
+SSD disk cost $ <input type="text" value="500"><br>
+RAM unit cost $ <input type="text" value="30"><br>
+
+</td>
+<td>
+
+<h1>Hardware params</h1>
+Spinning disk size, Gb <input type="text" value="1000"><br>
+SS disk size, Gb <input type="text" value="500"><br>
+RAM unit size, Gb <input type="text" value="16"><br>
+Max RAM units per server <input type="text" value="16"><br>
+
+</td>
+<td>
+
+<h1>Other costs</h1>
+Units per rack <input type="text" value="20"><br>
+Units per server <input type="text" value="2"><br>
+Rack monthly price $ <input type="text" value="1000"><br>
+Cost of money % <input type="text" value="3"><br>
+Amortization period, months <input type="text" value="36"><br>
+
+</td>
+</tr>
+
+<tr>
+
+<td>
+<h1>Requirements</h1>
+Read QPS <input type="text" value="100000"><br>
+Write QPS <input type="text" value="100000"><br>
+Size of the dataset, Gb <input type="text" value="1024"><br>
+Number of replicas <input type="text" value="2"><br>
+Disks per raid <input type="text" value="2"><br>
+<select>
+<option>Custom</option>
+<option>Read & write heavy workload. Big dataset</option>
+<option>Read heavy workload. A little write workload. Big dataset</option>
+<option>A little workload. Big dataset</option>
+<option>Read & write heavy workload. Small dataset</option>
+<option>Read heavy workload. A little write workload. Small dataset</option>
+<option>Read & write super heavy workload. Big dataset</option>
+</select>
+</td>
+
+<td>
+<h1>Database system</h1>
+Max read QPS <input type="text" value="100000"><br>
+Max write QPS <input type="text" value="100000"><br>
+Data overhead, % <input type="text" value="10"><br>
+Spinning disk, % <input type="text" value="100"><br>
+SSD, % <input type="text" value="0"><br>
+RAM, % <input type="text" value="100"><br>
+Min RAM per server, Gb <input type="text" value="1"><br>
+Max RAM per server, Gb <input type="text" value="256"><br>
+Monthly support per server $ <input type="text" value="0"><br>
+Monthly license fee per server $ <input type="text" value="0"><br>
+<select>
+<option>Custom</option>
+<option>Tarantool</option>
+<option>Tarantool with support</option>
+<option>Redis</option>
+<option>Redis with support</option>
+<option>MySQL</option>
+<option>MySQL with support</option>
+<option>Oracle</option>
+<option>Oracle with support</option>
+</select>
+</td>
+
+<td>
+
+<h1>Result</h1>
+
+number_of_servers=30<br>
+server is 0xSSD, 2xSATA, 80xRAMxGb, for $2350<br>
+total_upfront_cost = $70500<br>
+monthly_cost = $3000<br>
+<b>grand_total_monthly = $5134</b><br>
+
+</td>
+
+</tr>
+
+<tr>
+<td><input type="submit" value="Estimate!"></td>
+</tr>
+
+</table>
+</form>
+
+</body>
+
+</html>
+
